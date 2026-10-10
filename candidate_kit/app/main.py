@@ -312,25 +312,29 @@ def index_ui():
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .modal-backdrop { background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px); }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased min-h-screen">
   <!-- Top Navbar -->
-  <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-50">
+  <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center space-x-3">
         <div class="bg-white text-indigo-700 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl shadow">HR</div>
         <div>
           <h1 class="font-bold text-lg leading-tight">HROne Attendance & Analytics Portal</h1>
-          <p class="text-xs text-indigo-200">FastAPI + MongoDB 8.2 Engine</p>
+          <p class="text-xs text-indigo-200">FastAPI &bull; MongoDB 8.2 Engine</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
-        <a href="/docs" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-md text-xs font-semibold tracking-wide transition flex items-center gap-1.5 shadow-sm border border-indigo-400">
-          <i class="fa-solid fa-code"></i> Interactive Swagger (/docs)
+        <button onclick="openModal('modal_add_emp')" class="px-3 py-1.5 bg-indigo-800 hover:bg-indigo-900 rounded-md text-xs font-semibold tracking-wide transition flex items-center gap-1.5 border border-indigo-400">
+          <i class="fa-solid fa-user-plus"></i> Add Employee
+        </button>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-md text-xs font-semibold tracking-wide transition flex items-center gap-1.5 border border-indigo-400">
+          <i class="fa-solid fa-code"></i> Swagger (/docs)
         </a>
-        <a href="/health" target="_blank" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-md text-xs font-semibold tracking-wide transition flex items-center gap-1.5 shadow-sm">
-          <i class="fa-solid fa-heart-pulse"></i> Health Status
+        <a href="/health" target="_blank" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-md text-xs font-semibold tracking-wide transition flex items-center gap-1.5">
+          <i class="fa-solid fa-heart-pulse"></i> Health
         </a>
       </div>
     </div>
@@ -339,30 +343,35 @@ def index_ui():
   <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
     <!-- Top Action Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Punch In / Punch Out Widget -->
+      <!-- Punch Terminal Widget -->
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
         <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
           <i class="fa-solid fa-fingerprint text-indigo-600"></i> Punch Action Terminal
         </h2>
         <div class="space-y-3 text-sm">
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Employee</label>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Select Employee</label>
             <select id="punch_emp" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-              <option value="EMP0001">EMP0001 - Asha Rao (Engineering)</option>
-              <option value="EMP0002">EMP0002 - Vikram Shah (Engineering)</option>
-              <option value="EMP0003">EMP0003 - Neha Iyer (Sales)</option>
-              <option value="EMP0004">EMP0004 - Rohit Das (Sales)</option>
-              <option value="EMP0005">EMP0005 - Meera Nair (Support)</option>
-              <option value="EMP0006">EMP0006 - Karan Bedi (Support)</option>
+              <!-- Dynamically populated from API -->
             </select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Status (For Punch-In)</label>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Status (for Punch In)</label>
             <select id="punch_status" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
               <option value="PRESENT">PRESENT (On Site)</option>
               <option value="WFH">WFH (Work From Home)</option>
               <option value="ON_DUTY">ON_DUTY (Official Duty)</option>
             </select>
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs font-medium text-slate-500">Timestamp</label>
+              <div class="flex items-center gap-2 text-xs">
+                <label class="cursor-pointer flex items-center gap-1"><input type="radio" name="time_mode" value="now" checked onchange="toggleTimeMode()"> Current Time</label>
+                <label class="cursor-pointer flex items-center gap-1"><input type="radio" name="time_mode" value="custom" onchange="toggleTimeMode()"> Custom</label>
+              </div>
+            </div>
+            <input type="datetime-local" id="custom_time_input" class="hidden w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none" value="2026-07-07T18:30">
           </div>
           <div class="grid grid-cols-2 gap-3 pt-1">
             <button onclick="handlePunch('in')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 text-xs">
@@ -379,17 +388,20 @@ def index_ui():
       <!-- Quick Metrics Summary -->
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col justify-between">
         <div>
-          <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-chart-pie text-indigo-600"></i> System Metrics Overview
-          </h2>
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-chart-pie text-indigo-600"></i> System Metrics Overview
+            </h2>
+            <span class="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold">MongoDB 8.2 Connected</span>
+          </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-lg">
-              <p class="text-xs text-indigo-600 font-medium">Headcount</p>
-              <p id="stat_emp_count" class="text-xl font-extrabold text-indigo-900 mt-1">6</p>
+              <p class="text-xs text-indigo-600 font-medium">Total Employees</p>
+              <p id="stat_emp_count" class="text-xl font-extrabold text-indigo-900 mt-1">-</p>
             </div>
             <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-lg">
               <p class="text-xs text-emerald-600 font-medium">Departments</p>
-              <p class="text-xl font-extrabold text-emerald-900 mt-1">3</p>
+              <p id="stat_dept_count" class="text-xl font-extrabold text-emerald-900 mt-1">-</p>
             </div>
             <div class="bg-amber-50 border border-amber-100 p-3 rounded-lg">
               <p class="text-xs text-amber-600 font-medium">Overnight Shift</p>
@@ -409,25 +421,31 @@ def index_ui():
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="flex border-b border-slate-200 space-x-4 text-sm font-semibold">
-      <button onclick="switchTab('tab_logs')" id="btn_tab_logs" class="py-2.5 px-4 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2">
+    <div class="flex border-b border-slate-200 space-x-2 sm:space-x-4 text-xs sm:text-sm font-semibold overflow-x-auto">
+      <button onclick="switchTab('tab_logs')" id="btn_tab_logs" class="py-2.5 px-3 sm:px-4 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2 whitespace-nowrap">
         <i class="fa-solid fa-calendar-check"></i> Attendance Logs
       </button>
-      <button onclick="switchTab('tab_dept')" id="btn_tab_dept" class="py-2.5 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
+      <button onclick="switchTab('tab_dept')" id="btn_tab_dept" class="py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap">
         <i class="fa-solid fa-building"></i> Department Summary
       </button>
-      <button onclick="switchTab('tab_leader')" id="btn_tab_leader" class="py-2.5 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
-        <i class="fa-solid fa-trophy"></i> Late Leaderboard (Ties Handled)
+      <button onclick="switchTab('tab_leader')" id="btn_tab_leader" class="py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-trophy"></i> Late Leaderboard (Ties)
       </button>
-      <button onclick="switchTab('tab_trend')" id="btn_tab_trend" class="py-2.5 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
-        <i class="fa-solid fa-chart-line"></i> Department Trend ($densify)
+      <button onclick="switchTab('tab_trend')" id="btn_tab_trend" class="py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-chart-line"></i> Trend ($densify)
+      </button>
+      <button onclick="switchTab('tab_emps')" id="btn_tab_emps" class="py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-users"></i> Employee Directory
       </button>
     </div>
 
     <!-- Tab 1: Attendance Logs Table -->
     <section id="tab_logs" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
-        <h3 class="font-bold text-sm text-slate-700">Recent Attendance Records</h3>
+        <div class="flex items-center gap-3">
+          <h3 class="font-bold text-sm text-slate-700">Attendance Records</h3>
+          <span class="text-xs text-slate-400">Natural key: (emp_code, date)</span>
+        </div>
         <button onclick="loadLogs()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm">
           <i class="fa-solid fa-rotate-right"></i> Refresh
         </button>
@@ -445,10 +463,11 @@ def index_ui():
               <th class="p-3">Late Mins</th>
               <th class="p-3">Overtime</th>
               <th class="p-3">Half Day</th>
+              <th class="p-3 text-center">Action</th>
             </tr>
           </thead>
           <tbody id="logs_table_body" class="divide-y divide-slate-100">
-            <tr><td colspan="9" class="p-4 text-center text-slate-400">Loading attendance records...</td></tr>
+            <tr><td colspan="10" class="p-4 text-center text-slate-400">Loading attendance records...</td></tr>
           </tbody>
         </table>
       </div>
@@ -457,7 +476,13 @@ def index_ui():
     <!-- Tab 2: Department Summary -->
     <section id="tab_dept" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
-        <h3 class="font-bold text-sm text-slate-700">Monthly Department Summary (Month: 2026-07)</h3>
+        <div class="flex items-center gap-3">
+          <h3 class="font-bold text-sm text-slate-700">Department Summary</h3>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-500 font-medium">Month:</label>
+            <input type="month" id="dept_month_input" value="2026-07" onchange="loadDeptSummary()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+          </div>
+        </div>
         <button onclick="loadDeptSummary()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm">
           <i class="fa-solid fa-rotate-right"></i> Refresh
         </button>
@@ -486,7 +511,19 @@ def index_ui():
     <!-- Tab 3: Late Leaderboard -->
     <section id="tab_leader" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
-        <h3 class="font-bold text-sm text-slate-700">Late-Comers Ranking (Standard Competition Ranking 1, 2, 2, 4)</h3>
+        <div class="flex items-center gap-3">
+          <h3 class="font-bold text-sm text-slate-700">Late-Comers Leaderboard</h3>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-500 font-medium">Month:</label>
+            <input type="month" id="leader_month_input" value="2026-07" onchange="loadLeaderboard()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+            <label class="text-xs text-slate-500 font-medium">Limit:</label>
+            <select id="leader_limit_select" onchange="loadLeaderboard()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+            </select>
+          </div>
+        </div>
         <button onclick="loadLeaderboard()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm">
           <i class="fa-solid fa-rotate-right"></i> Refresh
         </button>
@@ -495,7 +532,7 @@ def index_ui():
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-semibold uppercase tracking-wider text-[11px]">
-              <th class="p-3">Rank</th>
+              <th class="p-3">Rank (1, 2, 2, 4)</th>
               <th class="p-3">Emp Code</th>
               <th class="p-3">Name</th>
               <th class="p-3">Department</th>
@@ -513,7 +550,21 @@ def index_ui():
     <!-- Tab 4: Department Trend ($densify) -->
     <section id="tab_trend" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
-        <h3 class="font-bold text-sm text-slate-700">Engineering Daily Trend (Gap-filled with $densify, 7d Moving Avg)</h3>
+        <div class="flex items-center flex-wrap gap-3">
+          <h3 class="font-bold text-sm text-slate-700">Daily Trend Series</h3>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-500 font-medium">Dept:</label>
+            <select id="trend_dept_select" onchange="loadTrend()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+              <option value="Engineering">Engineering</option>
+              <option value="Sales">Sales</option>
+              <option value="Support">Support</option>
+            </select>
+            <label class="text-xs text-slate-500 font-medium">From:</label>
+            <input type="date" id="trend_from_input" value="2026-07-05" onchange="loadTrend()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+            <label class="text-xs text-slate-500 font-medium">To:</label>
+            <input type="date" id="trend_to_input" value="2026-07-10" onchange="loadTrend()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+          </div>
+        </div>
         <button onclick="loadTrend()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm">
           <i class="fa-solid fa-rotate-right"></i> Refresh
         </button>
@@ -522,7 +573,7 @@ def index_ui():
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-semibold uppercase tracking-wider text-[11px]">
-              <th class="p-3">Date</th>
+              <th class="p-3">Date (Gap-Filled)</th>
               <th class="p-3">Working Day</th>
               <th class="p-3">Headcount</th>
               <th class="p-3">Present Count</th>
@@ -537,25 +588,164 @@ def index_ui():
         </table>
       </div>
     </section>
+
+    <!-- Tab 5: Employee Directory -->
+    <section id="tab_emps" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+        <h3 class="font-bold text-sm text-slate-700">Employee Directory</h3>
+        <button onclick="openModal('modal_add_emp')" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold transition shadow-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-plus"></i> New Employee
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-semibold uppercase tracking-wider text-[11px]">
+              <th class="p-3">Emp Code</th>
+              <th class="p-3">Name</th>
+              <th class="p-3">Email</th>
+              <th class="p-3">Department</th>
+              <th class="p-3">Shift Hours</th>
+              <th class="p-3">Joined Date</th>
+            </tr>
+          </thead>
+          <tbody id="emps_table_body" class="divide-y divide-slate-100">
+            <tr><td colspan="6" class="p-4 text-center text-slate-400">Loading employee directory...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
+
+  <!-- Modal: Add Employee -->
+  <div id="modal_add_emp" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-user-plus text-indigo-600"></i> Create New Employee
+        </h3>
+        <button onclick="closeModal('modal_add_emp')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form onsubmit="handleCreateEmployee(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Employee Code (pattern: EMP followed by 4-6 digits)</label>
+          <input type="text" id="add_emp_code" placeholder="EMP0007" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Full Name</label>
+          <input type="text" id="add_name" placeholder="John Doe" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Email</label>
+          <input type="email" id="add_email" placeholder="john@example.com" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Department</label>
+          <input type="text" id="add_dept" placeholder="Engineering" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-600 font-medium mb-1">Shift Start</label>
+            <input type="text" id="add_shift_start" value="09:30" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-600 font-medium mb-1">Shift End</label>
+            <input type="text" id="add_shift_end" value="18:30" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Joined Date</label>
+          <input type="date" id="add_joined_on" value="2026-07-01" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div id="add_emp_msg" class="hidden p-2 rounded text-xs"></div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('modal_add_emp')" class="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Regularize Attendance -->
+  <div id="modal_regularize" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-pen-to-square text-indigo-600"></i> Regularize Attendance
+        </h3>
+        <button onclick="closeModal('modal_regularize')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form onsubmit="handleRegularizeSubmit(event)" class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded border border-slate-200">
+          <div><span class="text-slate-400 block">Employee</span> <strong id="reg_emp_code" class="text-slate-700"></strong></div>
+          <div><span class="text-slate-400 block">Date</span> <strong id="reg_date" class="text-slate-700"></strong></div>
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Status</label>
+          <select id="reg_status" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="PRESENT">PRESENT</option>
+            <option value="WFH">WFH</option>
+            <option value="ON_DUTY">ON_DUTY</option>
+            <option value="ABSENT">ABSENT</option>
+            <option value="LEAVE">LEAVE</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Punch In Instant</label>
+          <input type="datetime-local" id="reg_punch_in" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Punch Out Instant</label>
+          <input type="datetime-local" id="reg_punch_out" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Reason (min 5 chars)</label>
+          <input type="text" id="reg_reason" placeholder="Biometric glitch at entry" required minlength="5" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-medium mb-1">Regularized By</label>
+          <input type="text" id="reg_by" value="hr.admin" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div id="reg_msg" class="hidden p-2 rounded text-xs font-mono break-all whitespace-pre-wrap"></div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('modal_regularize')" class="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium">Save Regularization</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <footer class="max-w-7xl mx-auto px-4 py-8 text-center text-xs text-slate-400">
     HROne Software Engineer Trainee Engineering Assessment &bull; FastAPI + MongoDB
   </footer>
 
   <script>
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function toggleTimeMode() {
+      const mode = document.querySelector('input[name="time_mode"]:checked').value;
+      const input = document.getElementById('custom_time_input');
+      if (mode === 'custom') {
+        input.classList.remove('hidden');
+      } else {
+        input.classList.add('hidden');
+      }
+    }
+
     function switchTab(tabId) {
-      ['tab_logs', 'tab_dept', 'tab_leader', 'tab_trend'].forEach(id => {
+      ['tab_logs', 'tab_dept', 'tab_leader', 'tab_trend', 'tab_emps'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
-        document.getElementById('btn_' + id).className = 'py-2.5 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2';
+        document.getElementById('btn_' + id).className = 'py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap';
       });
       document.getElementById(tabId).classList.remove('hidden');
-      document.getElementById('btn_' + tabId).className = 'py-2.5 px-4 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2';
+      document.getElementById('btn_' + tabId).className = 'py-2.5 px-3 sm:px-4 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2 whitespace-nowrap';
 
       if (tabId === 'tab_logs') loadLogs();
       if (tabId === 'tab_dept') loadDeptSummary();
       if (tabId === 'tab_leader') loadLeaderboard();
       if (tabId === 'tab_trend') loadTrend();
+      if (tabId === 'tab_emps') loadEmployees();
     }
 
     function formatTime(ms) {
@@ -564,26 +754,123 @@ def index_ui():
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
+    function isoToEpochMs(val) {
+      if (!val) return null;
+      return new Date(val).getTime();
+    }
+
+    function msToIsoDatetimeLocal(ms) {
+      if (!ms) return '';
+      const d = new Date(ms);
+      const pad = n => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    async function loadEmployees() {
+      try {
+        const res = await fetch('/employees?page=1&page_size=100');
+        const data = await res.json();
+        
+        // Populate Directory Table
+        const tbody = document.getElementById('emps_table_body');
+        tbody.innerHTML = data.items.map(e => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-semibold text-slate-800">${e.emp_code}</td>
+            <td class="p-3 font-medium">${e.name}</td>
+            <td class="p-3 text-slate-500">${e.email}</td>
+            <td class="p-3"><span class="px-2 py-0.5 bg-slate-100 rounded text-slate-700 font-semibold">${e.department}</span></td>
+            <td class="p-3 text-slate-600 font-mono">${e.shift_start} - ${e.shift_end}</td>
+            <td class="p-3 text-slate-500">${e.joined_on}</td>
+          </tr>
+        `).join('');
+
+        // Populate Punch Dropdown
+        const punchSelect = document.getElementById('punch_emp');
+        punchSelect.innerHTML = data.items.map(e => `
+          <option value="${e.emp_code}">${e.emp_code} - ${e.name} (${e.department})</option>
+        `).join('');
+
+        // Stats
+        document.getElementById('stat_emp_count').textContent = data.total;
+        const depts = new Set(data.items.map(e => e.department));
+        document.getElementById('stat_dept_count').textContent = depts.size;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function handleCreateEmployee(e) {
+      e.preventDefault();
+      const msg = document.getElementById('add_emp_msg');
+      const payload = {
+        emp_code: document.getElementById('add_emp_code').value.trim(),
+        name: document.getElementById('add_name').value.trim(),
+        email: document.getElementById('add_email').value.trim(),
+        department: document.getElementById('add_dept').value.trim(),
+        shift_start: document.getElementById('add_shift_start').value.trim(),
+        shift_end: document.getElementById('add_shift_end').value.trim(),
+        joined_on: document.getElementById('add_joined_on').value.trim(),
+      };
+
+      try {
+        const res = await fetch('/employees', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          msg.className = 'p-2 rounded text-xs bg-emerald-50 text-emerald-800 block';
+          msg.textContent = 'Employee created successfully!';
+          setTimeout(() => {
+            closeModal('modal_add_emp');
+            loadEmployees();
+            msg.className = 'hidden';
+          }, 1000);
+        } else {
+          msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 block';
+          msg.textContent = 'Error: ' + JSON.stringify(data.detail);
+        }
+      } catch (err) {
+        msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 block';
+        msg.textContent = 'Request failed: ' + err.message;
+      }
+    }
+
     async function handlePunch(type) {
       const emp = document.getElementById('punch_emp').value;
       const status = document.getElementById('punch_status').value;
+      const mode = document.querySelector('input[name="time_mode"]:checked').value;
       const msg = document.getElementById('punch_msg');
+
       msg.className = 'p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-slate-100 text-slate-600';
       msg.textContent = 'Processing request...';
 
+      let punched_at = null;
+      if (mode === 'custom') {
+        const customVal = document.getElementById('custom_time_input').value;
+        if (customVal) {
+          punched_at = new Date(customVal).getTime();
+        }
+      }
+
       try {
         let res;
+        const payload = { emp_code: emp };
+        if (punched_at) payload.punched_at = punched_at;
+
         if (type === 'in') {
+          payload.status = status;
           res = await fetch('/attendance/punch-in', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ emp_code: emp, status: status })
+            body: JSON.stringify(payload)
           });
         } else {
           res = await fetch('/attendance/punch-out', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ emp_code: emp })
+            body: JSON.stringify(payload)
           });
         }
         const data = await res.json();
@@ -603,17 +890,17 @@ def index_ui():
 
     async function loadLogs() {
       try {
-        const res = await fetch('/attendance?page=1&page_size=20');
+        const res = await fetch('/attendance?page=1&page_size=30');
         const data = await res.json();
         const tbody = document.getElementById('logs_table_body');
         if (!data.items || data.items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-slate-400">No attendance logs found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-slate-400">No attendance logs found.</td></tr>';
           return;
         }
         tbody.innerHTML = data.items.map(r => `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3 font-semibold text-slate-700">${r.emp_code}</td>
-            <td class="p-3 text-slate-600">${r.date}</td>
+            <td class="p-3 text-slate-600 font-mono">${r.date}</td>
             <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${r.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-700' : r.status === 'WFH' ? 'bg-sky-100 text-sky-700' : r.status === 'ON_DUTY' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${r.status}</span></td>
             <td class="p-3 text-slate-600">${formatTime(r.punch_in)}</td>
             <td class="p-3 text-slate-600">${formatTime(r.punch_out)}</td>
@@ -621,6 +908,11 @@ def index_ui():
             <td class="p-3 ${r.late_minutes > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">${r.late_minutes} m</td>
             <td class="p-3 ${r.overtime_minutes > 0 ? 'text-indigo-600 font-bold' : 'text-slate-400'}">${r.overtime_minutes} m</td>
             <td class="p-3">${r.half_day ? '<span class="text-rose-600 font-bold">Yes</span>' : '<span class="text-slate-400">No</span>'}</td>
+            <td class="p-3 text-center">
+              <button onclick='openRegularizeModal(${JSON.stringify(r)})' class="px-2 py-1 bg-slate-100 hover:bg-indigo-100 text-slate-700 hover:text-indigo-700 rounded text-[11px] font-medium transition">
+                <i class="fa-solid fa-pen"></i> Regularize
+              </button>
+            </td>
           </tr>
         `).join('');
       } catch (err) {
@@ -628,11 +920,70 @@ def index_ui():
       }
     }
 
+    function openRegularizeModal(r) {
+      document.getElementById('reg_emp_code').textContent = r.emp_code;
+      document.getElementById('reg_date').textContent = r.date;
+      document.getElementById('reg_status').value = r.status;
+      document.getElementById('reg_punch_in').value = msToIsoDatetimeLocal(r.punch_in);
+      document.getElementById('reg_punch_out').value = msToIsoDatetimeLocal(r.punch_out);
+      document.getElementById('reg_reason').value = '';
+      document.getElementById('reg_msg').className = 'hidden';
+      openModal('modal_regularize');
+    }
+
+    async function handleRegularizeSubmit(e) {
+      e.preventDefault();
+      const emp_code = document.getElementById('reg_emp_code').textContent;
+      const date = document.getElementById('reg_date').textContent;
+      const status = document.getElementById('reg_status').value;
+      const punch_in_val = document.getElementById('reg_punch_in').value;
+      const punch_out_val = document.getElementById('reg_punch_out').value;
+      const reason = document.getElementById('reg_reason').value.trim();
+      const regularized_by = document.getElementById('reg_by').value.trim();
+      const msg = document.getElementById('reg_msg');
+
+      const payload = {
+        reason: reason,
+        regularized_by: regularized_by,
+        status: status
+      };
+      if (punch_in_val) payload.punch_in = isoToEpochMs(punch_in_val);
+      if (punch_out_val) payload.punch_out = isoToEpochMs(punch_out_val);
+
+      try {
+        const res = await fetch('/attendance/' + emp_code + '/' + date, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          msg.className = 'p-2 rounded text-xs bg-emerald-50 text-emerald-800 block';
+          msg.textContent = 'Record regularized successfully!';
+          setTimeout(() => {
+            closeModal('modal_regularize');
+            loadLogs();
+          }, 1000);
+        } else {
+          msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 block';
+          msg.textContent = 'Error: ' + JSON.stringify(data.detail);
+        }
+      } catch (err) {
+        msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 block';
+        msg.textContent = 'Request failed: ' + err.message;
+      }
+    }
+
     async function loadDeptSummary() {
       try {
-        const res = await fetch('/analytics/departments/summary?month=2026-07');
+        const m = document.getElementById('dept_month_input').value || '2026-07';
+        const res = await fetch('/analytics/departments/summary?month=' + m);
         const data = await res.json();
         const tbody = document.getElementById('dept_table_body');
+        if (!data.items || data.items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">No departments found for ' + m + '.</td></tr>';
+          return;
+        }
         tbody.innerHTML = data.items.map(it => `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3 font-bold text-slate-800">${it.department}</td>
@@ -652,9 +1003,15 @@ def index_ui():
 
     async function loadLeaderboard() {
       try {
-        const res = await fetch('/analytics/leaderboard/late?month=2026-07&limit=10');
+        const m = document.getElementById('leader_month_input').value || '2026-07';
+        const lim = document.getElementById('leader_limit_select').value || '10';
+        const res = await fetch('/analytics/leaderboard/late?month=' + m + '&limit=' + lim);
         const data = await res.json();
         const tbody = document.getElementById('leader_table_body');
+        if (!data.items || data.items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">No late incidents in ' + m + '.</td></tr>';
+          return;
+        }
         tbody.innerHTML = data.items.map(it => `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3 font-extrabold text-indigo-700">#${it.rank}</td>
@@ -672,12 +1029,19 @@ def index_ui():
 
     async function loadTrend() {
       try {
-        const res = await fetch('/analytics/departments/Engineering/trend?from=2026-07-05&to=2026-07-10');
+        const dept = document.getElementById('trend_dept_select').value || 'Engineering';
+        const fromDate = document.getElementById('trend_from_input').value || '2026-07-05';
+        const toDate = document.getElementById('trend_to_input').value || '2026-07-10';
+        const res = await fetch('/analytics/departments/' + dept + '/trend?from=' + fromDate + '&to=' + toDate);
         const data = await res.json();
         const tbody = document.getElementById('trend_table_body');
+        if (!data.items || data.items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">No trend data available.</td></tr>';
+          return;
+        }
         tbody.innerHTML = data.items.map(it => `
           <tr class="hover:bg-slate-50 transition">
-            <td class="p-3 font-semibold">${it.date}</td>
+            <td class="p-3 font-semibold font-mono">${it.date}</td>
             <td class="p-3">${it.is_working_day ? '<span class="text-emerald-600 font-bold">Mon-Fri</span>' : '<span class="text-slate-400">Weekend</span>'}</td>
             <td class="p-3">${it.headcount}</td>
             <td class="p-3">${it.present_count}</td>
@@ -691,7 +1055,8 @@ def index_ui():
       }
     }
 
-    // Initial load
+    // Initialize application on load
+    loadEmployees();
     loadLogs();
   </script>
 </body>
