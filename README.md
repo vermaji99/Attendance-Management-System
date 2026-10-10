@@ -64,6 +64,7 @@ Start the FastAPI application with Uvicorn from the repository root:
 uvicorn app.main:app --port 8000 --reload
 ```
 
+- **Web Dashboard UI:** `http://localhost:8000/` (interactive live punch terminal, logs table, and analytics visualizer)
 - **Readiness probe:** `http://localhost:8000/health` (returns `200 {"status": "ok"}` only when MongoDB answers a ping)
 - **Interactive OpenAPI Documentation (Swagger UI):** `http://localhost:8000/docs`
 - **ReDoc Documentation:** `http://localhost:8000/redoc`
