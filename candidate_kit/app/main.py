@@ -302,8 +302,7 @@ def serialize_attendance(doc: Dict[str, Any]) -> Dict[str, Any]:
 @app.get("/", response_class=HTMLResponse, tags=["system"], include_in_schema=False)
 def index_ui():
     """Interactive HR Attendance & Analytics Web UI Dashboard."""
-    return """<!DOCTYPE html>
-<html lang="en">
+    return r"""<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>HROne Attendance & Analytics Dashboard</title>
@@ -313,10 +312,18 @@ def index_ui():
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     .modal-backdrop { background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px); }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .toast-anim { animation: slideIn 0.25s ease-out forwards; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased min-h-screen">
-  <!-- Top Navbar -->
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+  <!-- Toast Container -->
+  <div id="toast_container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2.5 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- Header -->
   <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center space-x-3">
@@ -340,49 +347,52 @@ def index_ui():
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6 flex-grow w-full">
     <!-- Top Action Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Punch Terminal Widget -->
-      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-        <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-fingerprint text-indigo-600"></i> Punch Action Terminal
-        </h2>
-        <div class="space-y-3 text-sm">
-          <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Select Employee</label>
-            <select id="punch_emp" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-              <!-- Dynamically populated from API -->
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Status (for Punch In)</label>
-            <select id="punch_status" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-              <option value="PRESENT">PRESENT (On Site)</option>
-              <option value="WFH">WFH (Work From Home)</option>
-              <option value="ON_DUTY">ON_DUTY (Official Duty)</option>
-            </select>
-          </div>
-          <div>
-            <div class="flex justify-between items-center mb-1">
-              <label class="block text-xs font-medium text-slate-500">Timestamp</label>
-              <div class="flex items-center gap-2 text-xs">
-                <label class="cursor-pointer flex items-center gap-1"><input type="radio" name="time_mode" value="now" checked onchange="toggleTimeMode()"> Current Time</label>
-                <label class="cursor-pointer flex items-center gap-1"><input type="radio" name="time_mode" value="custom" onchange="toggleTimeMode()"> Custom</label>
-              </div>
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+        <div>
+          <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-fingerprint text-indigo-600"></i> Punch Action Terminal
+          </h2>
+          <div class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Select Employee</label>
+              <select id="punch_emp" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <!-- Dynamically loaded from API -->
+              </select>
             </div>
-            <input type="datetime-local" id="custom_time_input" class="hidden w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none" value="2026-07-07T18:30">
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">Status (for Punch-In)</label>
+              <select id="punch_status" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <option value="PRESENT">PRESENT (On Site)</option>
+                <option value="WFH">WFH (Work From Home)</option>
+                <option value="ON_DUTY">ON_DUTY (Official Duty)</option>
+              </select>
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-medium text-slate-500">Timestamp</label>
+                <div class="flex items-center gap-2 text-xs">
+                  <label class="cursor-pointer flex items-center gap-1 text-slate-600"><input type="radio" name="time_mode" value="now" checked onchange="toggleTimeMode()"> Current Time</label>
+                  <label class="cursor-pointer flex items-center gap-1 text-slate-600"><input type="radio" name="time_mode" value="custom" onchange="toggleTimeMode()"> Custom</label>
+                </div>
+              </div>
+              <input type="datetime-local" id="custom_time_input" class="hidden w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-3 pt-1">
+              <button onclick="handlePunch('in')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 text-xs">
+                <i class="fa-solid fa-right-to-bracket"></i> Punch In
+              </button>
+              <button onclick="handlePunch('out')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 text-xs">
+                <i class="fa-solid fa-right-from-bracket"></i> Punch Out
+              </button>
+            </div>
           </div>
-          <div class="grid grid-cols-2 gap-3 pt-1">
-            <button onclick="handlePunch('in')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 text-xs">
-              <i class="fa-solid fa-right-to-bracket"></i> Punch In
-            </button>
-            <button onclick="handlePunch('out')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 text-xs">
-              <i class="fa-solid fa-right-from-bracket"></i> Punch Out
-            </button>
-          </div>
-          <div id="punch_msg" class="hidden p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap"></div>
         </div>
+        <div id="punch_msg" class="hidden mt-3 p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap border"></div>
       </div>
 
       <!-- Quick Metrics Summary -->
@@ -392,7 +402,9 @@ def index_ui():
             <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
               <i class="fa-solid fa-chart-pie text-indigo-600"></i> System Metrics Overview
             </h2>
-            <span class="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold">MongoDB 8.2 Connected</span>
+            <span class="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> MongoDB 8.2 Active
+            </span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-lg">
@@ -404,8 +416,8 @@ def index_ui():
               <p id="stat_dept_count" class="text-xl font-extrabold text-emerald-900 mt-1">-</p>
             </div>
             <div class="bg-amber-50 border border-amber-100 p-3 rounded-lg">
-              <p class="text-xs text-amber-600 font-medium">Overnight Shift</p>
-              <p class="text-xl font-extrabold text-amber-900 mt-1">22:00-06:00</p>
+              <p class="text-xs text-amber-600 font-medium">Overnight Shifts</p>
+              <p class="text-xl font-extrabold text-amber-900 mt-1">22:00 - 06:00</p>
             </div>
             <div class="bg-sky-50 border border-sky-100 p-3 rounded-lg">
               <p class="text-xs text-sky-600 font-medium">Timezone</p>
@@ -414,16 +426,19 @@ def index_ui():
           </div>
         </div>
         <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex flex-wrap justify-between items-center gap-2">
-          <span><i class="fa-solid fa-shield-halved text-indigo-600"></i> Concurrency-Safe (Unique indexes on <code>(emp_code, date)</code>)</span>
-          <span><i class="fa-solid fa-database text-emerald-600"></i> Pure MongoDB Aggregation Pipelines</span>
+          <span><i class="fa-solid fa-shield-halved text-indigo-600"></i> Concurrency-Safe (Unique compound key <code>(emp_code, date)</code>)</span>
+          <span><i class="fa-solid fa-database text-emerald-600"></i> Aggregations ($lookup, $setWindowFields, $densify)</span>
         </div>
       </div>
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="flex border-b border-slate-200 space-x-2 sm:space-x-4 text-xs sm:text-sm font-semibold overflow-x-auto">
+    <div class="flex border-b border-slate-200 space-x-1 sm:space-x-3 text-xs sm:text-sm font-semibold overflow-x-auto">
       <button onclick="switchTab('tab_logs')" id="btn_tab_logs" class="py-2.5 px-3 sm:px-4 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2 whitespace-nowrap">
         <i class="fa-solid fa-calendar-check"></i> Attendance Logs
+      </button>
+      <button onclick="switchTab('tab_emp_month')" id="btn_tab_emp_month" class="py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-user-check"></i> Employee Monthly
       </button>
       <button onclick="switchTab('tab_dept')" id="btn_tab_dept" class="py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap">
         <i class="fa-solid fa-building"></i> Department Summary
@@ -441,15 +456,35 @@ def index_ui():
 
     <!-- Tab 1: Attendance Logs Table -->
     <section id="tab_logs" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <!-- Filter Bar -->
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
-        <div class="flex items-center gap-3">
-          <h3 class="font-bold text-sm text-slate-700">Attendance Records</h3>
-          <span class="text-xs text-slate-400">Natural key: (emp_code, date)</span>
+        <div class="flex items-center flex-wrap gap-2.5 text-xs">
+          <span class="font-bold text-slate-700 mr-1"><i class="fa-solid fa-filter text-indigo-500"></i> Filter Logs:</span>
+          <select id="log_filter_emp" class="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white">
+            <option value="">All Employees</option>
+          </select>
+          <select id="log_filter_status" class="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white">
+            <option value="">All Statuses</option>
+            <option value="PRESENT">PRESENT</option>
+            <option value="WFH">WFH</option>
+            <option value="ON_DUTY">ON_DUTY</option>
+            <option value="ABSENT">ABSENT</option>
+            <option value="LEAVE">LEAVE</option>
+          </select>
+          <input type="date" id="log_filter_from" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white" placeholder="From Date">
+          <input type="date" id="log_filter_to" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white" placeholder="To Date">
+          <button onclick="loadLogs()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold transition shadow-sm">
+            Apply
+          </button>
+          <button onclick="resetLogFilters()" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs transition">
+            Clear
+          </button>
         </div>
-        <button onclick="loadLogs()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm">
+        <button onclick="loadLogs()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm flex items-center gap-1.5 text-slate-700">
           <i class="fa-solid fa-rotate-right"></i> Refresh
         </button>
       </div>
+
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
@@ -459,21 +494,45 @@ def index_ui():
               <th class="p-3">Status</th>
               <th class="p-3">Punch In</th>
               <th class="p-3">Punch Out</th>
-              <th class="p-3">Work Hours</th>
-              <th class="p-3">Late Mins</th>
-              <th class="p-3">Overtime</th>
-              <th class="p-3">Half Day</th>
+              <th class="p-3">Work Hours (R4)</th>
+              <th class="p-3">Late Mins (R2)</th>
+              <th class="p-3">Overtime (R3)</th>
+              <th class="p-3">Half Day (R5)</th>
+              <th class="p-3 text-center">Audit</th>
               <th class="p-3 text-center">Action</th>
             </tr>
           </thead>
           <tbody id="logs_table_body" class="divide-y divide-slate-100">
-            <tr><td colspan="10" class="p-4 text-center text-slate-400">Loading attendance records...</td></tr>
+            <tr><td colspan="11" class="p-4 text-center text-slate-400">Loading attendance records...</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <!-- Tab 2: Department Summary -->
+    <!-- Tab 2: Employee Monthly Analytics (New Dedicated Tab) -->
+    <section id="tab_emp_month" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center flex-wrap gap-3">
+          <h3 class="font-bold text-sm text-slate-700">Employee Monthly Analytics</h3>
+          <div class="flex items-center gap-2 text-xs">
+            <label class="text-slate-500 font-medium">Employee:</label>
+            <select id="emp_month_select" class="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white">
+              <!-- Dynamically populated -->
+            </select>
+            <label class="text-slate-500 font-medium">Month:</label>
+            <input type="month" id="emp_month_input" value="2026-07" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
+            <button onclick="loadEmployeeMonthly()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold transition shadow-sm">
+              Generate Report
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="emp_month_content" class="p-6">
+        <p class="text-center text-slate-400 text-xs py-8">Select an employee and month, then click 'Generate Report'.</p>
+      </div>
+    </section>
+
+    <!-- Tab 3: Department Summary -->
     <section id="tab_dept" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
         <div class="flex items-center gap-3">
@@ -483,7 +542,7 @@ def index_ui():
             <input type="month" id="dept_month_input" value="2026-07" onchange="loadDeptSummary()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
           </div>
         </div>
-        <button onclick="loadDeptSummary()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm">
+        <button onclick="loadDeptSummary()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm flex items-center gap-1.5 text-slate-700">
           <i class="fa-solid fa-rotate-right"></i> Refresh
         </button>
       </div>
@@ -508,7 +567,7 @@ def index_ui():
       </div>
     </section>
 
-    <!-- Tab 3: Late Leaderboard -->
+    <!-- Tab 4: Late Leaderboard -->
     <section id="tab_leader" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
         <div class="flex items-center gap-3">
@@ -524,7 +583,7 @@ def index_ui():
             </select>
           </div>
         </div>
-        <button onclick="loadLeaderboard()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm">
+        <button onclick="loadLeaderboard()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm flex items-center gap-1.5 text-slate-700">
           <i class="fa-solid fa-rotate-right"></i> Refresh
         </button>
       </div>
@@ -547,7 +606,7 @@ def index_ui():
       </div>
     </section>
 
-    <!-- Tab 4: Department Trend ($densify) -->
+    <!-- Tab 5: Department Trend ($densify) -->
     <section id="tab_trend" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3">
         <div class="flex items-center flex-wrap gap-3">
@@ -556,8 +615,6 @@ def index_ui():
             <label class="text-xs text-slate-500 font-medium">Dept:</label>
             <select id="trend_dept_select" onchange="loadTrend()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
               <option value="Engineering">Engineering</option>
-              <option value="Sales">Sales</option>
-              <option value="Support">Support</option>
             </select>
             <label class="text-xs text-slate-500 font-medium">From:</label>
             <input type="date" id="trend_from_input" value="2026-07-05" onchange="loadTrend()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
@@ -565,7 +622,7 @@ def index_ui():
             <input type="date" id="trend_to_input" value="2026-07-10" onchange="loadTrend()" class="border border-slate-300 rounded px-2 py-1 text-xs bg-white">
           </div>
         </div>
-        <button onclick="loadTrend()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm">
+        <button onclick="loadTrend()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold hover:bg-slate-100 transition shadow-sm flex items-center gap-1.5 text-slate-700">
           <i class="fa-solid fa-rotate-right"></i> Refresh
         </button>
       </div>
@@ -589,7 +646,7 @@ def index_ui():
       </div>
     </section>
 
-    <!-- Tab 5: Employee Directory -->
+    <!-- Tab 6: Employee Directory -->
     <section id="tab_emps" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
         <h3 class="font-bold text-sm text-slate-700">Employee Directory</h3>
@@ -629,7 +686,7 @@ def index_ui():
       <form onsubmit="handleCreateEmployee(event)" class="space-y-3 text-xs">
         <div>
           <label class="block text-slate-600 font-medium mb-1">Employee Code (pattern: EMP followed by 4-6 digits)</label>
-          <input type="text" id="add_emp_code" placeholder="EMP0007" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          <input type="text" id="add_emp_code" placeholder="EMP0007" pattern="^EMP\d{4,6}$" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
         </div>
         <div>
           <label class="block text-slate-600 font-medium mb-1">Full Name</label>
@@ -645,19 +702,19 @@ def index_ui():
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-600 font-medium mb-1">Shift Start</label>
-            <input type="text" id="add_shift_start" value="09:30" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <label class="block text-slate-600 font-medium mb-1">Shift Start (HH:MM)</label>
+            <input type="text" id="add_shift_start" value="09:30" pattern="^([01]\d|2[0-3]):[0-5]\d$" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
-            <label class="block text-slate-600 font-medium mb-1">Shift End</label>
-            <input type="text" id="add_shift_end" value="18:30" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <label class="block text-slate-600 font-medium mb-1">Shift End (HH:MM)</label>
+            <input type="text" id="add_shift_end" value="18:30" pattern="^([01]\d|2[0-3]):[0-5]\d$" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
         </div>
         <div>
           <label class="block text-slate-600 font-medium mb-1">Joined Date</label>
           <input type="date" id="add_joined_on" value="2026-07-01" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
         </div>
-        <div id="add_emp_msg" class="hidden p-2 rounded text-xs"></div>
+        <div id="add_emp_msg" class="hidden p-2 rounded text-xs border"></div>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" onclick="closeModal('modal_add_emp')" class="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
           <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium">Create</button>
@@ -678,25 +735,28 @@ def index_ui():
       <form onsubmit="handleRegularizeSubmit(event)" class="space-y-3 text-xs">
         <div class="grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded border border-slate-200">
           <div><span class="text-slate-400 block">Employee</span> <strong id="reg_emp_code" class="text-slate-700"></strong></div>
-          <div><span class="text-slate-400 block">Date</span> <strong id="reg_date" class="text-slate-700"></strong></div>
+          <div><span class="text-slate-400 block">Date (IST)</span> <strong id="reg_date" class="text-slate-700"></strong></div>
         </div>
         <div>
           <label class="block text-slate-600 font-medium mb-1">Status</label>
-          <select id="reg_status" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          <select id="reg_status" onchange="onRegStatusChange()" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             <option value="PRESENT">PRESENT</option>
             <option value="WFH">WFH</option>
             <option value="ON_DUTY">ON_DUTY</option>
             <option value="ABSENT">ABSENT</option>
             <option value="LEAVE">LEAVE</option>
           </select>
+          <p id="reg_status_hint" class="hidden text-[11px] text-amber-600 mt-1"><i class="fa-solid fa-circle-info"></i> ABSENT/LEAVE will clear both punch times.</p>
         </div>
-        <div>
-          <label class="block text-slate-600 font-medium mb-1">Punch In Instant</label>
-          <input type="datetime-local" id="reg_punch_in" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-600 font-medium mb-1">Punch Out Instant</label>
-          <input type="datetime-local" id="reg_punch_out" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        <div id="reg_punch_fields" class="space-y-3">
+          <div>
+            <label class="block text-slate-600 font-medium mb-1">Punch In Instant</label>
+            <input type="datetime-local" id="reg_punch_in" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-600 font-medium mb-1">Punch Out Instant</label>
+            <input type="datetime-local" id="reg_punch_out" class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
         </div>
         <div>
           <label class="block text-slate-600 font-medium mb-1">Reason (min 5 chars)</label>
@@ -706,7 +766,7 @@ def index_ui():
           <label class="block text-slate-600 font-medium mb-1">Regularized By</label>
           <input type="text" id="reg_by" value="hr.admin" required class="w-full border border-slate-300 rounded px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
         </div>
-        <div id="reg_msg" class="hidden p-2 rounded text-xs font-mono break-all whitespace-pre-wrap"></div>
+        <div id="reg_msg" class="hidden p-2 rounded text-xs font-mono break-all whitespace-pre-wrap border"></div>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" onclick="closeModal('modal_regularize')" class="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 font-medium">Cancel</button>
           <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium">Save Regularization</button>
@@ -715,11 +775,104 @@ def index_ui():
     </div>
   </div>
 
-  <footer class="max-w-7xl mx-auto px-4 py-8 text-center text-xs text-slate-400">
+  <!-- Modal: View Audit History -->
+  <div id="modal_audit" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> Audit Trail History
+        </h3>
+        <button onclick="closeModal('modal_audit')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="mb-3 text-xs bg-slate-50 p-2.5 rounded border border-slate-200 flex justify-between">
+        <div>Employee: <strong id="audit_emp_code" class="text-slate-800"></strong></div>
+        <div>Date: <strong id="audit_date" class="text-slate-800"></strong></div>
+      </div>
+      <div id="audit_list" class="space-y-3 max-h-80 overflow-y-auto text-xs">
+        <!-- Rendered history items -->
+      </div>
+      <div class="flex justify-end pt-3 mt-3 border-t border-slate-100">
+        <button type="button" onclick="closeModal('modal_audit')" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-medium text-xs">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="max-w-7xl mx-auto px-4 py-6 text-center text-xs text-slate-400 w-full">
     HROne Software Engineer Trainee Engineering Assessment &bull; FastAPI + MongoDB
   </footer>
 
   <script>
+    // Global Toast Notification Helper
+    function showToast(message, type = 'info', duration = 4000) {
+      const container = document.getElementById('toast_container');
+      const toast = document.createElement('div');
+      
+      const colors = {
+        success: 'bg-emerald-600 text-white',
+        error: 'bg-rose-600 text-white',
+        warning: 'bg-amber-500 text-white',
+        info: 'bg-indigo-600 text-white',
+      };
+      
+      const icons = {
+        success: '<i class="fa-solid fa-circle-check"></i>',
+        error: '<i class="fa-solid fa-circle-exclamation"></i>',
+        warning: '<i class="fa-solid fa-triangle-exclamation"></i>',
+        info: '<i class="fa-solid fa-circle-info"></i>',
+      };
+
+      toast.className = `p-3 rounded-lg shadow-lg text-xs flex items-center justify-between gap-3 pointer-events-auto toast-anim ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="text-sm">${icons[type] || icons.info}</span>
+          <span class="font-medium">${message}</span>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+      `;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        if (toast.parentElement) toast.remove();
+      }, duration);
+    }
+
+    // Comprehensive Error Message Formatter
+    function formatError(detail) {
+      if (!detail) return 'An unexpected error occurred.';
+      if (typeof detail === 'string') {
+        if (detail.includes('already punched in for this date')) {
+          return 'Already punched in for today. Use the Regularize option below to adjust times.';
+        }
+        if (detail.includes('No punch-in found')) {
+          return 'No active punch-in found for this employee. Punch-in is required before punch-out.';
+        }
+        if (detail.includes('that record is already punched out')) {
+          return 'Session is already punched out. A new punch-in is required for a new session.';
+        }
+        if (detail.includes('emp_code already exists')) {
+          return 'An employee with this Employee Code already exists.';
+        }
+        if (detail.includes('punched_at must be strictly after punch_in')) {
+          return 'Punch-out time must be strictly after punch-in time.';
+        }
+        if (detail.includes('No changes detected')) {
+          return 'No fields were modified. Change at least one field to save regularization.';
+        }
+        return detail;
+      }
+      if (Array.isArray(detail)) {
+        return detail.map(d => {
+          const field = d.loc && d.loc.length ? d.loc[d.loc.length - 1] : '';
+          return (field ? field + ': ' : '') + d.msg;
+        }).join('; ');
+      }
+      if (typeof detail === 'object') {
+        return JSON.stringify(detail);
+      }
+      return String(detail);
+    }
+
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -728,20 +881,30 @@ def index_ui():
       const input = document.getElementById('custom_time_input');
       if (mode === 'custom') {
         input.classList.remove('hidden');
+        if (!input.value) {
+          const now = new Date();
+          const pad = n => String(n).padStart(2, '0');
+          input.value = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+        }
       } else {
         input.classList.add('hidden');
       }
     }
 
     function switchTab(tabId) {
-      ['tab_logs', 'tab_dept', 'tab_leader', 'tab_trend', 'tab_emps'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-        document.getElementById('btn_' + id).className = 'py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap';
+      ['tab_logs', 'tab_emp_month', 'tab_dept', 'tab_leader', 'tab_trend', 'tab_emps'].forEach(id => {
+        const el = document.getElementById(id);
+        const btn = document.getElementById('btn_' + id);
+        if (el) el.classList.add('hidden');
+        if (btn) btn.className = 'py-2.5 px-3 sm:px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 whitespace-nowrap';
       });
-      document.getElementById(tabId).classList.remove('hidden');
-      document.getElementById('btn_' + tabId).className = 'py-2.5 px-3 sm:px-4 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2 whitespace-nowrap';
+      const activeEl = document.getElementById(tabId);
+      const activeBtn = document.getElementById('btn_' + tabId);
+      if (activeEl) activeEl.classList.remove('hidden');
+      if (activeBtn) activeBtn.className = 'py-2.5 px-3 sm:px-4 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2 whitespace-nowrap';
 
       if (tabId === 'tab_logs') loadLogs();
+      if (tabId === 'tab_emp_month') loadEmployeeMonthly();
       if (tabId === 'tab_dept') loadDeptSummary();
       if (tabId === 'tab_leader') loadLeaderboard();
       if (tabId === 'tab_trend') loadTrend();
@@ -766,23 +929,32 @@ def index_ui():
       return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
     }
 
+    // Load Employees
     async function loadEmployees() {
       try {
         const res = await fetch('/employees?page=1&page_size=100');
         const data = await res.json();
+        if (!res.ok) {
+          showToast('Failed to load employees: ' + formatError(data.detail), 'error');
+          return;
+        }
         
         // Populate Directory Table
         const tbody = document.getElementById('emps_table_body');
-        tbody.innerHTML = data.items.map(e => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="p-3 font-semibold text-slate-800">${e.emp_code}</td>
-            <td class="p-3 font-medium">${e.name}</td>
-            <td class="p-3 text-slate-500">${e.email}</td>
-            <td class="p-3"><span class="px-2 py-0.5 bg-slate-100 rounded text-slate-700 font-semibold">${e.department}</span></td>
-            <td class="p-3 text-slate-600 font-mono">${e.shift_start} - ${e.shift_end}</td>
-            <td class="p-3 text-slate-500">${e.joined_on}</td>
-          </tr>
-        `).join('');
+        if (!data.items || data.items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">No employees registered.</td></tr>';
+        } else {
+          tbody.innerHTML = data.items.map(e => `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 font-semibold text-slate-800">${e.emp_code}</td>
+              <td class="p-3 font-medium">${e.name}</td>
+              <td class="p-3 text-slate-500">${e.email}</td>
+              <td class="p-3"><span class="px-2 py-0.5 bg-slate-100 rounded text-slate-700 font-semibold">${e.department}</span></td>
+              <td class="p-3 text-slate-600 font-mono">${e.shift_start} - ${e.shift_end}</td>
+              <td class="p-3 text-slate-500">${e.joined_on}</td>
+            </tr>
+          `).join('');
+        }
 
         // Populate Punch Dropdown
         const punchSelect = document.getElementById('punch_emp');
@@ -790,15 +962,40 @@ def index_ui():
           <option value="${e.emp_code}">${e.emp_code} - ${e.name} (${e.department})</option>
         `).join('');
 
+        // Populate Employee Monthly Dropdown
+        const empMonthSelect = document.getElementById('emp_month_select');
+        if (empMonthSelect) {
+          empMonthSelect.innerHTML = data.items.map(e => `
+            <option value="${e.emp_code}">${e.emp_code} - ${e.name}</option>
+          `).join('');
+        }
+
+        // Populate Log Filter Employee Dropdown
+        const logFilterEmp = document.getElementById('log_filter_emp');
+        if (logFilterEmp) {
+          logFilterEmp.innerHTML = '<option value="">All Employees</option>' + data.items.map(e => `
+            <option value="${e.emp_code}">${e.emp_code} - ${e.name}</option>
+          `).join('');
+        }
+
+        // Populate Trend Department Dropdown
+        const depts = Array.from(new Set(data.items.map(e => e.department))).sort();
+        const trendDeptSelect = document.getElementById('trend_dept_select');
+        if (trendDeptSelect && depts.length > 0) {
+          const currentVal = trendDeptSelect.value;
+          trendDeptSelect.innerHTML = depts.map(d => `<option value="${d}">${d}</option>`).join('');
+          if (depts.includes(currentVal)) trendDeptSelect.value = currentVal;
+        }
+
         // Stats
         document.getElementById('stat_emp_count').textContent = data.total;
-        const depts = new Set(data.items.map(e => e.department));
-        document.getElementById('stat_dept_count').textContent = depts.size;
+        document.getElementById('stat_dept_count').textContent = depts.length;
       } catch (err) {
-        console.error(err);
+        showToast('Network error while loading employees: ' + err.message, 'error');
       }
     }
 
+    // Create Employee Handler
     async function handleCreateEmployee(e) {
       e.preventDefault();
       const msg = document.getElementById('add_emp_msg');
@@ -820,30 +1017,40 @@ def index_ui():
         });
         const data = await res.json();
         if (res.ok) {
-          msg.className = 'p-2 rounded text-xs bg-emerald-50 text-emerald-800 block';
+          msg.className = 'p-2 rounded text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 block';
           msg.textContent = 'Employee created successfully!';
+          showToast(`Employee ${payload.emp_code} created!`, 'success');
           setTimeout(() => {
             closeModal('modal_add_emp');
             loadEmployees();
             msg.className = 'hidden';
+            e.target.reset();
           }, 1000);
         } else {
-          msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 block';
-          msg.textContent = 'Error: ' + JSON.stringify(data.detail);
+          const formatted = formatError(data.detail);
+          msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 border border-rose-200 block';
+          msg.textContent = 'Error: ' + formatted;
+          showToast(formatted, 'error');
         }
       } catch (err) {
-        msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 block';
+        msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 border border-rose-200 block';
         msg.textContent = 'Request failed: ' + err.message;
+        showToast('Network error: ' + err.message, 'error');
       }
     }
 
+    // Punch Terminal Handler
     async function handlePunch(type) {
       const emp = document.getElementById('punch_emp').value;
+      if (!emp) {
+        showToast('Please select an employee first', 'warning');
+        return;
+      }
       const status = document.getElementById('punch_status').value;
       const mode = document.querySelector('input[name="time_mode"]:checked').value;
       const msg = document.getElementById('punch_msg');
 
-      msg.className = 'p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-slate-100 text-slate-600';
+      msg.className = 'mt-3 p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-slate-100 text-slate-600 border border-slate-200';
       msg.textContent = 'Processing request...';
 
       let punched_at = null;
@@ -875,48 +1082,108 @@ def index_ui():
         }
         const data = await res.json();
         if (res.ok) {
-          msg.className = 'p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-emerald-50 text-emerald-800 border border-emerald-200';
-          msg.textContent = 'Success (' + res.status + '):\n' + JSON.stringify(data, null, 2);
+          msg.className = 'mt-3 p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-emerald-50 text-emerald-800 border border-emerald-200';
+          let summary = `Success (${res.status}): Punch-${type.toUpperCase()} recorded for ${emp}.\nDate: ${data.date} | Status: ${data.status}`;
+          if (data.late_minutes > 0) summary += `\nLate: ${data.late_minutes} mins`;
+          if (data.work_hours != null) summary += `\nWork Hours: ${data.work_hours} hrs | Overtime: ${data.overtime_minutes} mins | Half Day: ${data.half_day ? 'Yes' : 'No'}`;
+          msg.textContent = summary;
+          showToast(`Punch-${type.toUpperCase()} successful for ${emp}!`, 'success');
           loadLogs();
         } else {
-          msg.className = 'p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-rose-50 text-rose-800 border border-rose-200';
-          msg.textContent = 'Error (' + res.status + '):\n' + JSON.stringify(data, null, 2);
+          const formatted = formatError(data.detail);
+          msg.className = 'mt-3 p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-rose-50 text-rose-800 border border-rose-200';
+          msg.textContent = `Error (${res.status}): ${formatted}`;
+          showToast(formatted, 'error');
         }
       } catch (err) {
-        msg.className = 'p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-rose-50 text-rose-800 border border-rose-200';
+        msg.className = 'mt-3 p-3 rounded-lg text-xs font-mono break-all whitespace-pre-wrap block bg-rose-50 text-rose-800 border border-rose-200';
         msg.textContent = 'Fetch failed: ' + err.message;
+        showToast('Network error: ' + err.message, 'error');
       }
     }
 
+    // Reset Filters
+    function resetLogFilters() {
+      document.getElementById('log_filter_emp').value = '';
+      document.getElementById('log_filter_status').value = '';
+      document.getElementById('log_filter_from').value = '';
+      document.getElementById('log_filter_to').value = '';
+      loadLogs();
+    }
+
+    // Load Attendance Logs
     async function loadLogs() {
       try {
-        const res = await fetch('/attendance?page=1&page_size=30');
+        const emp = document.getElementById('log_filter_emp')?.value;
+        const st = document.getElementById('log_filter_status')?.value;
+        const dFrom = document.getElementById('log_filter_from')?.value;
+        const dTo = document.getElementById('log_filter_to')?.value;
+
+        const params = new URLSearchParams({ page: '1', page_size: '50' });
+        if (emp) params.append('emp_code', emp);
+        if (st) params.append('status', st);
+        if (dFrom) params.append('date_from', dFrom);
+        if (dTo) params.append('date_to', dTo);
+
+        const res = await fetch('/attendance?' + params.toString());
         const data = await res.json();
         const tbody = document.getElementById('logs_table_body');
-        if (!data.items || data.items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-slate-400">No attendance logs found.</td></tr>';
+        
+        if (!res.ok) {
+          tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-rose-600 font-medium">Error: ${formatError(data.detail)} <button onclick="loadLogs()" class="ml-2 underline">Retry</button></td></tr>`;
+          showToast(formatError(data.detail), 'error');
           return;
         }
-        tbody.innerHTML = data.items.map(r => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="p-3 font-semibold text-slate-700">${r.emp_code}</td>
-            <td class="p-3 text-slate-600 font-mono">${r.date}</td>
-            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${r.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-700' : r.status === 'WFH' ? 'bg-sky-100 text-sky-700' : r.status === 'ON_DUTY' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${r.status}</span></td>
-            <td class="p-3 text-slate-600">${formatTime(r.punch_in)}</td>
-            <td class="p-3 text-slate-600">${formatTime(r.punch_out)}</td>
-            <td class="p-3 font-semibold">${r.work_hours != null ? r.work_hours.toFixed(2) + ' h' : '-'}</td>
-            <td class="p-3 ${r.late_minutes > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">${r.late_minutes} m</td>
-            <td class="p-3 ${r.overtime_minutes > 0 ? 'text-indigo-600 font-bold' : 'text-slate-400'}">${r.overtime_minutes} m</td>
-            <td class="p-3">${r.half_day ? '<span class="text-rose-600 font-bold">Yes</span>' : '<span class="text-slate-400">No</span>'}</td>
-            <td class="p-3 text-center">
-              <button onclick='openRegularizeModal(${JSON.stringify(r)})' class="px-2 py-1 bg-slate-100 hover:bg-indigo-100 text-slate-700 hover:text-indigo-700 rounded text-[11px] font-medium transition">
-                <i class="fa-solid fa-pen"></i> Regularize
-              </button>
-            </td>
-          </tr>
-        `).join('');
+
+        if (!data.items || data.items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-slate-400">No attendance logs found matching filters.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.items.map(r => {
+          const auditCount = r.history ? r.history.length : 0;
+          const auditBadge = auditCount > 0 
+            ? `<button onclick='openAuditModal(${JSON.stringify(r)})' class="px-2 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded text-[10px] font-bold transition">Audit (${auditCount})</button>`
+            : `<span class="text-slate-300">-</span>`;
+
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 font-semibold text-slate-700">${r.emp_code}</td>
+              <td class="p-3 text-slate-600 font-mono">${r.date}</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${r.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-700' : r.status === 'WFH' ? 'bg-sky-100 text-sky-700' : r.status === 'ON_DUTY' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${r.status}</span></td>
+              <td class="p-3 text-slate-600 font-mono">${formatTime(r.punch_in)}</td>
+              <td class="p-3 text-slate-600 font-mono">${formatTime(r.punch_out)}</td>
+              <td class="p-3 font-semibold">${r.work_hours != null ? r.work_hours.toFixed(2) + ' h' : '-'}</td>
+              <td class="p-3 ${r.late_minutes > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'}">${r.late_minutes} m</td>
+              <td class="p-3 ${r.overtime_minutes > 0 ? 'text-indigo-600 font-bold' : 'text-slate-400'}">${r.overtime_minutes} m</td>
+              <td class="p-3">${r.half_day ? '<span class="text-rose-600 font-bold">Yes</span>' : '<span class="text-slate-400">No</span>'}</td>
+              <td class="p-3 text-center">${auditBadge}</td>
+              <td class="p-3 text-center">
+                <button onclick='openRegularizeModal(${JSON.stringify(r)})' class="px-2.5 py-1 bg-slate-100 hover:bg-indigo-100 text-slate-700 hover:text-indigo-700 rounded text-[11px] font-medium transition shadow-sm">
+                  <i class="fa-solid fa-pen"></i> Regularize
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
       } catch (err) {
-        console.error(err);
+        const tbody = document.getElementById('logs_table_body');
+        tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-rose-600">Failed to load logs: ${err.message}</td></tr>`;
+        showToast('Network error loading logs: ' + err.message, 'error');
+      }
+    }
+
+    // Modal: Regularize Attendance
+    function onRegStatusChange() {
+      const st = document.getElementById('reg_status').value;
+      const punchFields = document.getElementById('reg_punch_fields');
+      const hint = document.getElementById('reg_status_hint');
+      if (st === 'ABSENT' || st === 'LEAVE') {
+        punchFields.classList.add('hidden');
+        hint.classList.remove('hidden');
+      } else {
+        punchFields.classList.remove('hidden');
+        hint.classList.add('hidden');
       }
     }
 
@@ -928,6 +1195,7 @@ def index_ui():
       document.getElementById('reg_punch_out').value = msToIsoDatetimeLocal(r.punch_out);
       document.getElementById('reg_reason').value = '';
       document.getElementById('reg_msg').className = 'hidden';
+      onRegStatusChange();
       openModal('modal_regularize');
     }
 
@@ -947,8 +1215,11 @@ def index_ui():
         regularized_by: regularized_by,
         status: status
       };
-      if (punch_in_val) payload.punch_in = isoToEpochMs(punch_in_val);
-      if (punch_out_val) payload.punch_out = isoToEpochMs(punch_out_val);
+
+      if (status !== 'ABSENT' && status !== 'LEAVE') {
+        if (punch_in_val) payload.punch_in = isoToEpochMs(punch_in_val);
+        if (punch_out_val) payload.punch_out = isoToEpochMs(punch_out_val);
+      }
 
       try {
         const res = await fetch('/attendance/' + emp_code + '/' + date, {
@@ -958,30 +1229,147 @@ def index_ui():
         });
         const data = await res.json();
         if (res.ok) {
-          msg.className = 'p-2 rounded text-xs bg-emerald-50 text-emerald-800 block';
+          msg.className = 'p-2 rounded text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 block';
           msg.textContent = 'Record regularized successfully!';
+          showToast(`Record ${emp_code} (${date}) regularized!`, 'success');
           setTimeout(() => {
             closeModal('modal_regularize');
             loadLogs();
           }, 1000);
         } else {
-          msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 block';
-          msg.textContent = 'Error: ' + JSON.stringify(data.detail);
+          const formatted = formatError(data.detail);
+          msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 border border-rose-200 block';
+          msg.textContent = 'Error: ' + formatted;
+          showToast(formatted, 'error');
         }
       } catch (err) {
-        msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 block';
+        msg.className = 'p-2 rounded text-xs bg-rose-50 text-rose-800 border border-rose-200 block';
         msg.textContent = 'Request failed: ' + err.message;
+        showToast('Network error: ' + err.message, 'error');
       }
     }
 
+    // Modal: View Audit History
+    function openAuditModal(r) {
+      document.getElementById('audit_emp_code').textContent = r.emp_code;
+      document.getElementById('audit_date').textContent = r.date;
+      const list = document.getElementById('audit_list');
+
+      if (!r.history || r.history.length === 0) {
+        list.innerHTML = '<p class="text-slate-400 text-center py-4">No audit corrections recorded.</p>';
+      } else {
+        list.innerHTML = r.history.map((h, idx) => {
+          const dateStr = h.at ? new Date(h.at).toLocaleString() : 'Unknown';
+          const changes = Object.entries(h.changes || {}).map(([f, diff]) => {
+            let fromStr = diff.from;
+            let toStr = diff.to;
+            if (f === 'punch_in' || f === 'punch_out') {
+              fromStr = formatTime(diff.from);
+              toStr = formatTime(diff.to);
+            }
+            return `<div class="font-mono text-[11px]"><strong class="text-slate-700">${f}:</strong> <span class="line-through text-rose-500">${fromStr ?? 'null'}</span> &rarr; <span class="text-emerald-600 font-semibold">${toStr ?? 'null'}</span></div>`;
+          }).join('');
+
+          return `
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
+              <div class="flex justify-between items-center text-[11px] text-slate-500">
+                <span><i class="fa-solid fa-user-pen"></i> By: <strong>${h.by}</strong></span>
+                <span><i class="fa-solid fa-clock"></i> ${dateStr}</span>
+              </div>
+              <div class="text-xs text-slate-800 font-medium pt-1"><span class="text-slate-400 font-normal">Reason:</span> ${h.reason}</div>
+              <div class="pt-1 border-t border-slate-200/60 mt-1">${changes}</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      openModal('modal_audit');
+    }
+
+    // Load Employee Monthly Summary (New Feature)
+    async function loadEmployeeMonthly() {
+      const emp = document.getElementById('emp_month_select')?.value || 'EMP0001';
+      const m = document.getElementById('emp_month_input')?.value || '2026-07';
+      const container = document.getElementById('emp_month_content');
+
+      container.innerHTML = '<p class="text-center text-slate-400 py-6">Loading monthly statistics...</p>';
+
+      try {
+        const res = await fetch(`/analytics/employees/${emp}/monthly?month=${m}`);
+        const data = await res.json();
+        if (!res.ok) {
+          container.innerHTML = `<div class="p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium text-center">Error: ${formatError(data.detail)}</div>`;
+          showToast(formatError(data.detail), 'error');
+          return;
+        }
+
+        const pct = data.attendance_pct != null ? data.attendance_pct.toFixed(2) : 'N/A';
+        container.innerHTML = `
+          <div class="space-y-6">
+            <div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+              <div>
+                <h4 class="font-bold text-sm text-indigo-900">${data.emp_code} &bull; Monthly Attendance Report</h4>
+                <p class="text-xs text-indigo-600">Month: ${data.month}</p>
+              </div>
+              <div class="text-right">
+                <span class="text-2xl font-black ${data.attendance_pct >= 80 ? 'text-emerald-600' : 'text-amber-600'}">${pct}%</span>
+                <p class="text-[10px] uppercase font-bold text-slate-400">Attendance Rate</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+              <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                <span class="text-xs text-slate-500 font-medium">Working Days (R7)</span>
+                <p class="text-2xl font-extrabold text-slate-800 mt-1">${data.working_days}</p>
+              </div>
+              <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl shadow-sm">
+                <span class="text-xs text-emerald-700 font-medium">Present Days (R6)</span>
+                <p class="text-2xl font-extrabold text-emerald-900 mt-1">${data.present_days}</p>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-sm">
+                <span class="text-xs text-slate-500 font-medium">Leave Days</span>
+                <p class="text-2xl font-extrabold text-slate-700 mt-1">${data.leave_days}</p>
+              </div>
+              <div class="bg-amber-50 border border-amber-100 p-4 rounded-xl shadow-sm">
+                <span class="text-xs text-amber-700 font-medium">Late Incidents</span>
+                <p class="text-2xl font-extrabold text-amber-900 mt-1">${data.late_count}</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center">
+                <span class="text-xs text-slate-600 font-medium">Total Late Minutes (R2)</span>
+                <span class="text-lg font-bold text-amber-700 font-mono">${data.total_late_minutes} mins</span>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center">
+                <span class="text-xs text-slate-600 font-medium">Total Overtime Minutes (R3)</span>
+                <span class="text-lg font-bold text-indigo-700 font-mono">${data.total_overtime_minutes} mins</span>
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        container.innerHTML = `<div class="p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium text-center">Failed to load monthly summary: ${err.message}</div>`;
+        showToast('Network error: ' + err.message, 'error');
+      }
+    }
+
+    // Load Department Summary
     async function loadDeptSummary() {
       try {
         const m = document.getElementById('dept_month_input').value || '2026-07';
         const res = await fetch('/analytics/departments/summary?month=' + m);
         const data = await res.json();
         const tbody = document.getElementById('dept_table_body');
+        
+        if (!res.ok) {
+          tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-rose-600 font-medium">Error: ${formatError(data.detail)} <button onclick="loadDeptSummary()" class="ml-2 underline">Retry</button></td></tr>`;
+          showToast(formatError(data.detail), 'error');
+          return;
+        }
+
         if (!data.items || data.items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">No departments found for ' + m + '.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">No departments found for ' + m + '.</td></tr>';
           return;
         }
         tbody.innerHTML = data.items.map(it => `
@@ -997,10 +1385,12 @@ def index_ui():
           </tr>
         `).join('');
       } catch (err) {
-        console.error(err);
+        document.getElementById('dept_table_body').innerHTML = `<tr><td colspan="8" class="p-6 text-center text-rose-600 font-medium">Network error: ${err.message}</td></tr>`;
+        showToast('Network error: ' + err.message, 'error');
       }
     }
 
+    // Load Late Leaderboard
     async function loadLeaderboard() {
       try {
         const m = document.getElementById('leader_month_input').value || '2026-07';
@@ -1008,8 +1398,15 @@ def index_ui():
         const res = await fetch('/analytics/leaderboard/late?month=' + m + '&limit=' + lim);
         const data = await res.json();
         const tbody = document.getElementById('leader_table_body');
+
+        if (!res.ok) {
+          tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-600 font-medium">Error: ${formatError(data.detail)} <button onclick="loadLeaderboard()" class="ml-2 underline">Retry</button></td></tr>`;
+          showToast(formatError(data.detail), 'error');
+          return;
+        }
+
         if (!data.items || data.items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">No late incidents in ' + m + '.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">No late incidents in ' + m + '.</td></tr>';
           return;
         }
         tbody.innerHTML = data.items.map(it => `
@@ -1023,27 +1420,42 @@ def index_ui():
           </tr>
         `).join('');
       } catch (err) {
-        console.error(err);
+        document.getElementById('leader_table_body').innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-600 font-medium">Network error: ${err.message}</td></tr>`;
+        showToast('Network error: ' + err.message, 'error');
       }
     }
 
+    // Load Department Trend ($densify)
     async function loadTrend() {
       try {
         const dept = document.getElementById('trend_dept_select').value || 'Engineering';
         const fromDate = document.getElementById('trend_from_input').value || '2026-07-05';
         const toDate = document.getElementById('trend_to_input').value || '2026-07-10';
-        const res = await fetch('/analytics/departments/' + dept + '/trend?from=' + fromDate + '&to=' + toDate);
+
+        if (fromDate > toDate) {
+          showToast("'From' date cannot be after 'To' date", 'warning');
+          return;
+        }
+
+        const res = await fetch('/analytics/departments/' + encodeURIComponent(dept) + '/trend?from=' + fromDate + '&to=' + toDate);
         const data = await res.json();
         const tbody = document.getElementById('trend_table_body');
+
+        if (!res.ok) {
+          tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-rose-600 font-medium">Error: ${formatError(data.detail)} <button onclick="loadTrend()" class="ml-2 underline">Retry</button></td></tr>`;
+          showToast(formatError(data.detail), 'error');
+          return;
+        }
+
         if (!data.items || data.items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">No trend data available.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">No trend data available for ' + dept + '.</td></tr>';
           return;
         }
         tbody.innerHTML = data.items.map(it => `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3 font-semibold font-mono">${it.date}</td>
             <td class="p-3">${it.is_working_day ? '<span class="text-emerald-600 font-bold">Mon-Fri</span>' : '<span class="text-slate-400">Weekend</span>'}</td>
-            <td class="p-3">${it.headcount}</td>
+            <td class="p-3 font-semibold">${it.headcount}</td>
             <td class="p-3">${it.present_count}</td>
             <td class="p-3">${it.late_count}</td>
             <td class="p-3 font-semibold">${it.attendance_rate != null ? (it.attendance_rate * 100).toFixed(2) + '%' : '-'}</td>
@@ -1051,7 +1463,8 @@ def index_ui():
           </tr>
         `).join('');
       } catch (err) {
-        console.error(err);
+        document.getElementById('trend_table_body').innerHTML = `<tr><td colspan="7" class="p-6 text-center text-rose-600 font-medium">Network error: ${err.message}</td></tr>`;
+        showToast('Network error: ' + err.message, 'error');
       }
     }
 
